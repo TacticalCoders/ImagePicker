@@ -1,37 +1,57 @@
 package com.inu.appcenter.imagepicker
 
+import android.app.Activity
 import android.content.Intent
+import android.content.res.Resources
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.ImageView
+import android.widget.Toast
+import androidx.activity.result.ActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import com.github.dhaval2404.imagepicker.ImagePicker
+
 
 class MainActivity : AppCompatActivity() {
 
-    private var PICK_IMAGE_FROM_ALBUM = 0
     private var photoUri : Uri? = null
-    private lateinit var getResult: ActivityResultLauncher<Intent>
+    private lateinit var imageView: ImageView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val iv = findViewById<ImageView>(R.id.imageView)
+        imageView = findViewById(R.id.imageView)
 
-        var photoPickerIntent = Intent(Intent.ACTION_PICK)
-        photoPickerIntent.type = "image/*"
-        //startActivityForResult(photoPickerIntent,PICK_IMAGE_FROM_ALBUM)
-        getResult = registerForActivityResult(ActivityResultContracts.StartActivityForResult()){
-            if (it.resultCode == RESULT_OK){
-                //사진을 선택했을 때, 이미지의 경로가 넘어오게 된다.
-                photoUri = it.data?.data
-                iv.setImageURI(photoUri)
-            }else{
-                finish()
+        val startForProfileImageResult =
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
+                val resultCode = result.resultCode
+                val data = result.data
+
+                if (resultCode == Activity.RESULT_OK) {
+                    //Image Uri will not be null for RESULT_OK
+                    val fileUri = data?.data!!
+                    photoUri = fileUri
+                    imageView.setImageURI(fileUri)
+
+                } else if (resultCode == ImagePicker.RESULT_ERROR) {
+                    Toast.makeText(this, ImagePicker.getError(data), Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Task Cancelled", Toast.LENGTH_SHORT).show()
+                }
             }
-        }
-        getResult.launch(photoPickerIntent)
+
+        ImagePicker.with(this)
+            .crop()	    			//Crop image(Optional), Check Customization for more option
+            .compress(1024)			//Final image size will be less than 1 MB(Optional)
+            .maxResultSize(1080, 1080)	//Final image resolution will be less than 1080 x 1080(Optional)
+            .galleryOnly()
+            .createIntent { intent ->
+                startForProfileImageResult.launch(intent)
+            }
     }
 }
